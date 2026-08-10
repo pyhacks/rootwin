@@ -1,0 +1,4 @@
+-IC:\Python311\include
+-IC:\libs\x64\GSL\2.7\include
+-IC:\libs\x64\sqlite3\3.45.2
+
