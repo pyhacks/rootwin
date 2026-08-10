@@ -10,6 +10,12 @@ However, it's interoperability capabilities are more limited compared to root an
 Specifically, C++ symbols you define are not automatically wrapped into python objects and made available to python.
 Nonetheless, you can use some techniques which are explained below to get some amount of interoperability.
 
+# Installation
+Recommended way of installing is by ```pip install rootwin```
+
+If you download from github, you need to recreate the .pch file by executing rootwin\root\makepch.py and placing the generated allDict.cxx.pch file into rootwin\root\etc.
+This is due to github not supporting storage of files larger than 100 MB.
+
 # Python Api
 rootwin.**ProcessLine**(code)
 
