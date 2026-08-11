@@ -13,7 +13,7 @@ def main():
     print("successful.")
     shutil.move("allDict.cxx.pch", "etc")
     os.chdir(cd)
-    #setuptools.setup()
+    setuptools.setup()
 
 
 main()
