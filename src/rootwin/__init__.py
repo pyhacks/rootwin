@@ -1,3 +1,4 @@
+from . import install
 from .rootwin import root_interface
 
 
