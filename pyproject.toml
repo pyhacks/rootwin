@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rootwin"
+version = "1.0.0"
+dependencies = []
+description = "Root's cling interpreter for embedding C++17 into python. Works on windows."
+readme = "README.md"
+authors = [{name = "pyhacks", email = "enginyildirim111@gmail.com"}]
+keywords = ["cling", "C++", "windows"]
+
+[project.urls]
+Homepage = "https://github.com/pyhacks/rootwin/"
