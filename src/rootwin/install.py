@@ -12,7 +12,11 @@ def install():
     print("generating the .pch...")
     process = subprocess.run("python makepch.py allDict.cxx.pch", shell = True, creationflags = subprocess.CREATE_NO_WINDOW)
     print("successful.")
-    shutil.move("allDict.cxx.pch", "etc")
+    try:
+        shutil.move("allDict.cxx.pch", "etc")
+    except shutil.Error:
+        os.remove("etc/allDict.cxx.pch")
+        shutil.move("allDict.cxx.pch", "etc")
     os.chdir(cd)
 
 
