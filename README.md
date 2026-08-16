@@ -34,10 +34,26 @@ This is the api available to the C++ code executed by rootwin.ProcessLine().
 template<typename T>
 T py_to_pointer(const char *name, bool local = true)
 ```
-Convert a python int to a C++ pointer.
+Convert a python int to a C++ pointer and return the result.
+_T_ can be any type that can be given to reinterpret_cast\<target-type\>(expression) as a target type.
 _name_ is expected to be the name of a python int. Expected scope of this int is determined by the _local_ argument.
 If _local_ is true, name is searched in the local variables of the currently executing python function. 
 Otherwise, it is searched in python globals.
+
+PyOStream **pyout**;
+
+An alternative to [std::cout](https://en.cppreference.com/cpp/io/cout). 
+The problem is when you use an IDE that hooks [sys.stdout](https://docs.python.org/3/library/sys.html#sys.stdout) (e.g, IDLE) std::cout still writes to the original stdout.
+This is from IDLE [docs](https://docs.python.org/3/library/idle.html#running-user-code):
+> By default, IDLE runs user code in a separate OS process rather than in the user interface process that runs the shell and editor. In the execution process, it replaces sys.stdin, sys.stdout, and sys.stderr with objects that get input from and send output to the Shell window.
+
+Write operations to original stdout are effectless since the user process' console window is invisible. 
+In order to solve this problem, rootwin redirects std::cout and std::cerr to sys.stdout and sys.stderr.
+Rootwin achieves this by using named pipes. 
+A side effect of that is early return from a stream insertion operation, before the data shows up in the shell window. 
+The reason for that is, such an operation completes when the data is sent to the named pipe, but not necessarily after it is read from the named pipe by a worker thread which has been created beforehand.
+Data will be printed only after the worker thread reads it and sends it to sys.stdout or sys.stderr.
+If you want the stream insertion operation to block until the data is printed to screen, use _pyout_ instead of std::cout.
 
 # Passing C++ objects to python
 Unlike cppyy and root libraries, manual work is needed to access C++ objects from python. High level steps are below:
