@@ -9,7 +9,7 @@ root_interface = None
 def redirect_std_files():
     code = b"""
     HANDLE python_stdout_pipe = CreateNamedPipeA("\\\\\\\\.\\\\pipe\\\\rootwin_stdout_loopback",
-                     PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
+                     PIPE_ACCESS_DUPLEX,
                      PIPE_TYPE_BYTE,
                      PIPE_UNLIMITED_INSTANCES,
                      10000,
@@ -17,7 +17,7 @@ def redirect_std_files():
                      NULL,
                      NULL);
     HANDLE python_stderr_pipe = CreateNamedPipeA("\\\\\\\\.\\\\pipe\\\\rootwin_stderr_loopback",
-                     PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
+                     PIPE_ACCESS_DUPLEX,
                      PIPE_TYPE_BYTE,
                      PIPE_UNLIMITED_INSTANCES,
                      10000,
@@ -40,31 +40,13 @@ def redirect_std_files():
     root_interface.ProcessLine(code)
     code = b"""
     DWORD python_stdout_write(LPVOID lpParameter)
-    {
+    {        
         while (true)
         {
             char *str = new char[100];
             memset(str, 0, 100);
-            DWORD have_read = 0;
-            HANDLE event = CreateEvent(NULL, TRUE, FALSE, NULL);
-            OVERLAPPED async_info;
-            async_info.hEvent = event;                     
-            ReadFileEx(python_stdout_pipe, str, 100, &async_info, completion_callback);
-            SuspendThread(original_thread);
-            while (true)
-            {
-                DWORD result = WaitForSingleObjectEx(async_info.hEvent, 10, TRUE);
-                if (result == WAIT_OBJECT_0 || result == WAIT_IO_COMPLETION)
-                {
-                    break;
-                }
-                ResumeThread(original_thread);
-                std::this_thread::sleep_for(10ms);            
-                SuspendThread(original_thread); 
-            }        
-            ResetEvent(async_info.hEvent);
-            ResumeThread(original_thread);
-            std::this_thread::sleep_for(10ms);  
+            DWORD have_read = 0;           
+            ReadFile(python_stdout_pipe, str, 100, &have_read, NULL);         
             PyGILState_STATE state = PyGILState_Ensure();        
             PySys_WriteStdout(str);        
             PyGILState_Release(state);
@@ -81,26 +63,8 @@ def redirect_std_files():
         {
             char *str = new char[100];
             memset(str, 0, 100);
-            DWORD have_read = 0;
-            HANDLE event = CreateEvent(NULL, TRUE, FALSE, NULL);
-            OVERLAPPED async_info;
-            async_info.hEvent = event;                   
-            ReadFileEx(python_stderr_pipe, str, 100, &async_info, completion_callback);
-            SuspendThread(original_thread);
-            while (true)
-            {
-                DWORD result = WaitForSingleObjectEx(async_info.hEvent, 10, TRUE);
-                if (result == WAIT_OBJECT_0 || result == WAIT_IO_COMPLETION)
-                {
-                    break;
-                }
-                ResumeThread(original_thread);
-                std::this_thread::sleep_for(10ms);            
-                SuspendThread(original_thread); 
-            }        
-            ResetEvent(async_info.hEvent);
-            ResumeThread(original_thread);
-            std::this_thread::sleep_for(10ms);  
+            DWORD have_read = 0;           
+            ReadFile(python_stderr_pipe, str, 100, &have_read, NULL);         
             PyGILState_STATE state = PyGILState_Ensure();        
             PySys_WriteStderr(str);        
             PyGILState_Release(state);
