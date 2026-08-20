@@ -132,6 +132,7 @@ def init_root():
     """
     root_interface.ProcessLine(code)
     redirect_std_files()
+    os.system("") # enables rendering ansi escapes and prevents weird shit from occuring when interactive shell is used from cmd instead of IDLE
     return root_interface
 
 
