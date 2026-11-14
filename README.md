@@ -26,6 +26,60 @@ rootwin.**root_interface**
 This is the underlying [ctypes.CDLL](https://docs.python.org/3/library/ctypes.html#ctypes.CDLL) instance.
 Currently, no functions other than ProcessLine() are exported since the need haven't arised.
 
+rootwin.**cpp_to_int**(name)
+
+_name_ must be a bytes literal representing a C++ variable or function. 
+Return value is the address of that C++ entity in the form of an ordinary python int.
+
+<a name="cpp-world"></a>
+rootwin.**cpp_world**
+
+An object that proxies C++ names to python. 
+You can get the list of all currently cached C++ names by executing:
+```python
+dir(rootwin.cpp_world)
+```
+When a name is not found in the internal cache, cache is updated by calling [load_cpp_names()](#load-cpp-names).
+If you don't want the overhead of calling this function, you can manually update the caches by modifying these lists:
+- rootwin.interop.macros
+- rootwin.interop.variables
+- rootwin.interop.functions
+- rootwin.interop.types
+- rootwin.interop.namespaces
+- rootwin.interop.templates
+- rootwin.interop.names
+
+rootwin.interop.names is the concatenation of all the other lists. 
+Whenever you modify one of the above lists, you should also modify rootwin.interop.names.
+All of the C++ names are proxied. That is achieved by wrapping them into below python classes:
+<a name="cpp-names"></a>
+- ObjectLikeMacro
+- FunctionLikeMacro
+- CppVariable
+- CppFunction
+- CppType
+- CppNamespace
+- CppTemplate
+
+<a name="load-cpp-names"></a>
+rootwin.**load_cpp_names**()
+
+Update the internal cache used by [rootwin.cpp_world](#cpp-world).
+
+rootwin.**new**(type_str, initializer = None)
+
+This function acts like the new keyword of C++. 
+_type_str_ is the type name and if given, _initializer_ must be a tuple storing the arguments. 
+Elements of _initalizer_ can either be python literals or [CppVariable](#cpp-names) instances.
+If an element is a python literal, it will be converted to its corresponding C++ literal.
+Otherwise [CppVariable](#cpp-names) object's underlying C++ name will be used as the argument.
+
+rootwin.**delete**(cpp_variable, is_array = False)
+
+This function acts like the delete keyword of C++.
+_cpp_variable_ must be a [CppVariable](#cpp-names) instance whose underlying C++ entity will be deleted.
+_is_array_ indicates whether this operation acts like the delete keyword or delete[] keyword of C++.
+Since its default value is false, it acts like the delete keyword by default.
 
 # C++ Api
 This is the api available to the C++ code executed by rootwin.ProcessLine().
