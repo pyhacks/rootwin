@@ -52,14 +52,120 @@ If you don't want the overhead of calling this function, you can manually update
 rootwin.interop.names is the concatenation of all the other lists. 
 Whenever you modify one of the above lists, you should also modify rootwin.interop.names.
 All of the C++ names are proxied. That is achieved by wrapping them into below python classes:
-<a name="cpp-names"></a>
-- ObjectLikeMacro
-- FunctionLikeMacro
 - CppVariable
 - CppFunction
+- ObjectLikeMacro
+- FunctionLikeMacro
 - CppType
 - CppNamespace
 - CppTemplate
+
+<a name="cpp-variable"></a>
+_class_ **CppVariable**
+
+Represents a C++ variable, including arrays. Almost all the operators are overloaded.
+Operators which don't have a python counterpart are implemented as methods.
+You can get the list of names of all the members of the C++ object this CppVariable instance wraps by passing the CppVariable instance to [dir()](https://docs.python.org/3/builtins/functions.html#dir).
+
+CppVariable.**negate**()
+
+Implements C++ negation operator: !
+
+CppVariable.**logical_and**()
+
+Implements C++ logical_and operator: &&
+
+CppVariable.**logical_or**()
+
+Implements C++ logical_or operator: ||
+
+CppVariable.**increment**()
+
+Implements C++ increment operator: ++
+
+CppVariable.**decrement**()
+
+Implements C++ decrement operator: --
+
+CppVariable.**dereference**()
+
+Implements C++ dereference operator: *
+
+CppVariable.**address_of**()
+
+Implements C++ address_of operator: &
+
+CppVariable.**sizeof**()
+
+Implements C++ sizeof operator: sizeof()
+
+CppVariable.**is_builtin_typed**()
+
+Return True if the type of the underlying C++ object is primitive.
+
+CppVariable.**name**
+
+A string storing the C++ name of the C++ variable this CppVariable instance wraps. 
+
+CppVariable.**type_name**
+
+A string storing the C++ type name of the C++ variable this CppVariable instance wraps. 
+
+CppVariable.**value**
+
+Value of the underlying C++ variable. 
+Reading it only works with variables with primitive types. 
+However, writing to it also works with C++ objects with user defined types.
+Even though you can write to it, you won't be able to read from it if the wrapped C++ object has a user defined type.
+When writing to it, right hand side of the assignment can be one of 2 things:
+- Either a python literal which will be converted to the corresponding C++ literal
+- or a CppVariable instance (possibly holding a user defined object).
+
+<a name="cpp-function"></a>
+_class_ **CppFunction**
+
+Respresents a C++ function, including methods, templated function instantiations and excluding uninstantiated function templates and function like macros.
+Calling an instance of this class will result in a call to the underlying C++ function.
+If the C++ function returns something, it will always be forwarded as a [CppVariable](#cpp-variable) instance.
+
+CppFunction.**prototype**
+
+A string storing the prototype of this function.
+
+_class_ **ObjectLikeMacro**
+
+This class inherits [CppVariable](#cpp-variable). 
+The reason for that is during construction, value of this macro is assigned to a C++ variable.
+This C++ variable is managed by ObjectLikeMacro. 
+
+_class_ **FunctionLikeMacro**
+
+Wraps a C++ function-like macro. Unlike ObjectLikeMacro, it doesn't inherit anything.
+
+_class_ **CppType**
+
+Represents a C++ type, including fundamental types, classes, structs, enums, unions, typedef'ed types, type aliases, class template instantiations and excluding uninstantiated class templates.
+You can get the list of names of all the members of the C++ class this CppType instance wraps by passing the CppType instance to [dir()](https://docs.python.org/3/builtins/functions.html#dir).
+You can access static members and inner types via member access operator (.) just like you do for instances.
+
+CppType.**sizeof**()
+
+Implements C++ sizeof operator: sizeof()
+
+_class_ **CppNamespace**
+
+Represents a C++ namespace.
+You can get the list of names of all the members of the C++ namespace this CppNamespace instance wraps by passing the CppNamespace instance to [dir()](https://docs.python.org/3/builtins/functions.html#dir).
+
+_class_ **CppTemplate**
+
+Represents a C++ template, including variable templates, function templates and class templates.
+Template parameters are specified by subscripting with strings. 
+Subscription result is either a CppVariable, CppFunction or a CppType instance. 
+Example:
+```python
+cpp_function1 = rootwin.cpp_world.func_template1["int", "float"]
+```
 
 <a name="load-cpp-names"></a>
 rootwin.**load_cpp_names**()
@@ -70,14 +176,14 @@ rootwin.**new**(type_str, initializer = None)
 
 This function acts like the new keyword of C++. 
 _type_str_ is the type name and if given, _initializer_ must be a tuple storing the arguments. 
-Elements of _initalizer_ can either be python literals or [CppVariable](#cpp-names) instances.
+Elements of _initalizer_ can either be python literals or [CppVariable](#cpp-variable) instances.
 If an element is a python literal, it will be converted to its corresponding C++ literal.
-Otherwise [CppVariable](#cpp-names) object's underlying C++ name will be used as the argument.
+Otherwise [CppVariable](#cpp-variable) object's underlying C++ name will be used as the argument.
 
 rootwin.**delete**(cpp_variable, is_array = False)
 
 This function acts like the delete keyword of C++.
-_cpp_variable_ must be a [CppVariable](#cpp-names) instance whose underlying C++ entity will be deleted.
+_cpp_variable_ must be a [CppVariable](#cpp-variable) instance whose underlying C++ entity will be deleted.
 _is_array_ indicates whether this operation acts like the delete keyword or delete[] keyword of C++.
 Since its default value is false, it acts like the delete keyword by default.
 
@@ -95,8 +201,8 @@ Then you can specify the source value by calling that object such as:
 ```python
 rootwin.static_cast["int"](rootwin.cpp_world.var1)
 ```
-Source value must be either a [CppVariable](#cpp-names) object or a [CppFunction](#cpp-names) object. Literals are not supported.
-Return value is always a [CppVariable](#cpp-names) object.
+Source value must be either a [CppVariable](#cpp-variable) object or a [CppFunction](#cpp-function) object. Literals are not supported.
+Return value is always a [CppVariable](#cpp-variable) object.
 
 # C++ Api
 This is the api available to the C++ code executed by rootwin.ProcessLine().
