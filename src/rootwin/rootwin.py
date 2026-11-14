@@ -1,11 +1,281 @@
 import ctypes
 import os
 
+import pyptrs
+
 
 dir_name = os.path.split(__file__)[0]
 root_interface = None
+clang_core = None
 
 
+def load_root_interface():
+    root_interface = ctypes.CDLL("root_interface.dll")
+    root_interface.ProcessLine.argtypes = [ctypes.c_char_p]
+    root_interface.ProcessLine.restype = None
+    return root_interface
+
+
+def load_clang_core():
+    clang_core = ctypes.CDLL("clang_core.dll")    
+    root_interface.ProcessLine(b"""#include "core/metacling/src/TCling.h" """)
+    root_interface.ProcessLine(b"""#include "core/metacling/src/TClingClassInfo.h" """)
+    root_interface.ProcessLine(b"""#include "cling/Interpreter/Interpreter.h" """)
+    root_interface.ProcessLine(b"""#include "cling/Interpreter/IncrementalParser.h" """)
+    root_interface.ProcessLine(b"""#include "clang/Frontend/CompilerInstance.h" """)
+    root_interface.ProcessLine(b"""#include "clang/AST/Type.h" """)
+    root_interface.ProcessLine(b"""#include "clang/Basic/IdentifierTable.h" """)
+    root_interface.ProcessLine(b"""#include "clang/Basic/LLVM.h" """)
+    root_interface.ProcessLine(b"""#include "clang/AST/Decl.h" """)
+    root_interface.ProcessLine(b"""#include "clang/AST/ASTContext.h" """)
+    root_interface.ProcessLine(b"""#include "clang/AST/ExternalASTSource.h" """)
+    root_interface.ProcessLine(b"""#include "clang/AST/DeclLookups.h" """)
+    root_interface.ProcessLine(b"""#include "clang/Lex/Preprocessor.h" """)
+    root_interface.ProcessLine(b"""#include "clang/Sema/Sema.h" """)
+    return clang_core
+    
+    
+def define_cpp_api():
+    root_interface.ProcessLine(b".include python")
+    root_interface.ProcessLine(b"""#include \"Python.h\"""")
+    code = b"""
+    template<typename T>
+    T py_to_pointer(const char *name, bool local = true)
+    {
+        PyGILState_STATE state = PyGILState_Ensure();
+        PyObject *locals;
+        if (local == true)
+        {
+            locals = PyEval_GetFrameLocals();
+        }
+        else
+        {
+            locals = PyEval_GetFrameGlobals();
+        }
+        PyObject *pyobject_address = PyDict_GetItemString(locals, name);
+        long long address = PyLong_AsLongLong(pyobject_address);
+        T obj = reinterpret_cast<T>(address);
+        PyGILState_Release(state);
+        return obj;
+    }
+    """
+    root_interface.ProcessLine(code)
+    code = b"""
+    class PyOStream
+    {
+    public:      
+        template<typename T>
+        PyOStream& operator<<(T var)
+        {
+            std::stringstream ss;
+            ss << var;        
+            PyGILState_STATE state = PyGILState_Ensure();
+            PySys_WriteStdout(ss.str().c_str());
+            PyGILState_Release(state);
+            return *this;
+        }       
+    };
+
+    PyOStream pyout;
+    """
+    root_interface.ProcessLine(code)     
+    code = b"""    
+    void traverse_object_decls(std::vector<const char*> &object_names, clang::Decl *decl)
+    {
+        clang::NamedDecl *named_decl = clang::dyn_cast<clang::NamedDecl>(decl);
+        clang::LinkageSpecDecl *linkage_spec_decl = clang::dyn_cast<clang::LinkageSpecDecl>(decl);        
+        if (named_decl)
+        {
+            llvm::StringRef name = named_decl->getName();                
+            
+            clang::VarDecl *var_decl = clang::dyn_cast<clang::VarDecl>(decl);
+            clang::FieldDecl *field_decl = clang::dyn_cast<clang::FieldDecl>(decl);
+            clang::UsingShadowDecl  *using_shadow_decl = clang::dyn_cast<clang::UsingShadowDecl>(decl);
+            clang::UsingDirectiveDecl *using_directive_decl = clang::dyn_cast<clang::UsingDirectiveDecl>(decl);            
+            if (var_decl || field_decl)
+            {
+                object_names.push_back(name.data());                           
+            }
+            else if (using_shadow_decl)
+            {
+                clang::NamedDecl *named_decl2 = using_shadow_decl->getTargetDecl();
+                traverse_object_decls(object_names, named_decl2);
+            }
+            else if (using_directive_decl)
+            {
+                clang::NamespaceDecl *ns_of_using = using_directive_decl->getNominatedNamespace();              
+                for (clang::Decl *decl2 : ns_of_using->noload_decls())                
+                {
+                    traverse_object_decls(object_names, decl2);
+                }         
+            }
+        }
+        else if (linkage_spec_decl)
+        {                       
+            for (clang::Decl *decl2 : linkage_spec_decl->noload_decls())
+            {                                
+                traverse_object_decls(object_names, decl2);                
+            }        
+        }
+    }
+    """
+    root_interface.ProcessLine(code)
+    code = b"""    
+    void traverse_function_decls(std::vector<const char*> &func_names, clang::Decl *decl)
+    {
+        clang::NamedDecl *named_decl = clang::dyn_cast<clang::NamedDecl>(decl);
+        clang::LinkageSpecDecl *linkage_spec_decl = clang::dyn_cast<clang::LinkageSpecDecl>(decl);
+        if (named_decl)
+        {
+            llvm::StringRef name = named_decl->getName();                
+            
+            clang::FunctionDecl *func_decl = clang::dyn_cast<clang::FunctionDecl>(decl);
+            clang::UsingShadowDecl  *using_shadow_decl = clang::dyn_cast<clang::UsingShadowDecl>(decl);
+            clang::UsingDirectiveDecl *using_directive_decl = clang::dyn_cast<clang::UsingDirectiveDecl>(decl);            
+            if (func_decl)
+            {
+                func_names.push_back(name.data());
+            }
+            else if (using_shadow_decl)
+            {
+                clang::NamedDecl *named_decl2 = using_shadow_decl->getTargetDecl();
+                traverse_function_decls(func_names, named_decl2);
+            }
+            else if (using_directive_decl)
+            {
+                clang::NamespaceDecl *ns_of_using = using_directive_decl->getNominatedNamespace();              
+                for (clang::Decl *decl2 : ns_of_using->noload_decls())                
+                {
+                    traverse_function_decls(func_names, decl2);
+                }         
+            }
+        }
+        else if (linkage_spec_decl)
+        {                       
+            for (clang::Decl *decl2 : linkage_spec_decl->noload_decls())
+            {                                
+                traverse_function_decls(func_names, decl2);                
+            }        
+        }
+    }
+    """
+    root_interface.ProcessLine(code)    
+    code = b"""
+    void traverse_type_decls(std::vector<const char*> &type_names, clang::Decl *decl)
+    {
+        clang::NamedDecl *named_decl = clang::dyn_cast<clang::NamedDecl>(decl);
+        clang::LinkageSpecDecl *linkage_spec_decl = clang::dyn_cast<clang::LinkageSpecDecl>(decl);
+        if (named_decl)
+        {
+            llvm::StringRef name = named_decl->getName();                
+            
+            clang::TypeDecl *type_decl = clang::dyn_cast<clang::TypeDecl>(decl);
+            clang::UsingShadowDecl  *using_shadow_decl = clang::dyn_cast<clang::UsingShadowDecl>(decl);
+            clang::UsingDirectiveDecl *using_directive_decl = clang::dyn_cast<clang::UsingDirectiveDecl>(decl);            
+            if (type_decl)
+            {
+                type_names.push_back(name.data());
+            }
+            else if (using_shadow_decl)
+            {
+                clang::NamedDecl *named_decl2 = using_shadow_decl->getTargetDecl();
+                traverse_type_decls(type_names, named_decl2);
+            }
+            else if (using_directive_decl)
+            {
+                clang::NamespaceDecl *ns_of_using = using_directive_decl->getNominatedNamespace();            
+                for (clang::Decl *decl2 : ns_of_using->noload_decls())
+                {
+                    traverse_type_decls(type_names, decl2);
+                }            
+            }
+        }
+        else if (linkage_spec_decl)
+        {
+            for (clang::Decl *decl2 : linkage_spec_decl->noload_decls())
+            {                                
+                traverse_type_decls(type_names, decl2);                
+            }
+        }
+    }
+    """
+    root_interface.ProcessLine(code)
+    code = b"""
+    void traverse_namespace_decls(std::vector<const char*> &namespace_names, clang::Decl *decl)
+    {
+        clang::NamedDecl *named_decl = clang::dyn_cast<clang::NamedDecl>(decl);
+        clang::LinkageSpecDecl *linkage_spec_decl = clang::dyn_cast<clang::LinkageSpecDecl>(decl);
+        if (named_decl)
+        {
+            llvm::StringRef name = named_decl->getName();                
+            
+            clang::NamespaceDecl *ns_decl = clang::dyn_cast<clang::NamespaceDecl>(decl);
+            clang::UsingDirectiveDecl *using_directive_decl = clang::dyn_cast<clang::UsingDirectiveDecl>(decl);
+            if (ns_decl)
+            {
+                namespace_names.push_back(name.data());
+            }
+            else if (using_directive_decl)
+            {
+                clang::NamespaceDecl *ns_of_using = using_directive_decl->getNominatedNamespace();            
+                for (clang::Decl *decl2 : ns_of_using->noload_decls())
+                {
+                    traverse_namespace_decls(namespace_names, decl2);
+                }            
+            }
+        }
+        else if (linkage_spec_decl)
+        {
+            for (clang::Decl *decl2 : linkage_spec_decl->noload_decls())
+            {
+                traverse_namespace_decls(namespace_names, decl2);
+            }
+        }
+    }
+    """
+    root_interface.ProcessLine(code)
+    code = b"""
+    void traverse_template_decls(std::vector<const char*> &template_names, clang::Decl *decl)
+    {
+        clang::NamedDecl *named_decl = clang::dyn_cast<clang::NamedDecl>(decl);
+        clang::LinkageSpecDecl *linkage_spec_decl = clang::dyn_cast<clang::LinkageSpecDecl>(decl);
+        if (named_decl)
+        {
+            llvm::StringRef name = named_decl->getName();                
+            
+            clang::TemplateDecl *template_decl = clang::dyn_cast<clang::TemplateDecl>(decl);
+            clang::UsingShadowDecl  *using_shadow_decl = clang::dyn_cast<clang::UsingShadowDecl>(decl);
+            clang::UsingDirectiveDecl *using_directive_decl = clang::dyn_cast<clang::UsingDirectiveDecl>(decl);
+            if (template_decl)
+            {
+                template_names.push_back(name.data());
+            }
+            else if (using_shadow_decl)
+            {
+                clang::NamedDecl *named_decl2 = using_shadow_decl->getTargetDecl();
+                traverse_template_decls(template_names, named_decl2);
+            }            
+            else if (using_directive_decl)
+            {
+                clang::NamespaceDecl *ns_of_using = using_directive_decl->getNominatedNamespace();            
+                for (clang::Decl *decl2 : ns_of_using->noload_decls())
+                {
+                    traverse_template_decls(template_names, decl2);
+                }            
+            }
+        }
+        else if (linkage_spec_decl)
+        {
+            for (clang::Decl *decl2 : linkage_spec_decl->noload_decls())
+            {
+                traverse_template_decls(template_names, decl2);
+            }
+        }
+    }
+    """
+    root_interface.ProcessLine(code)      
+
+   
 def redirect_std_files():
     code = b"""
     HANDLE python_stdout_pipe = CreateNamedPipeA("\\\\\\\\.\\\\pipe\\\\rootwin_stdout_loopback",
@@ -32,13 +302,6 @@ def redirect_std_files():
     root_interface.ProcessLine(b"HANDLE original_thread;")
     root_interface.ProcessLine(b"DuplicateHandle(GetCurrentProcess(), current_thread, GetCurrentProcess(), &original_thread, NULL, FALSE, DUPLICATE_SAME_ACCESS);")
     code = b"""
-    VOID completion_callback(DWORD dwErrorCode, DWORD dwNumberOfBytesTransfered, LPOVERLAPPED lpOverlapped)
-    {
-        SetEvent(lpOverlapped->hEvent);
-    }
-    """
-    root_interface.ProcessLine(code)
-    code = b"""
     DWORD python_stdout_write(LPVOID lpParameter)
     {        
         while (true)
@@ -46,7 +309,7 @@ def redirect_std_files():
             char *str = new char[100];
             memset(str, 0, 100);
             DWORD have_read = 0;           
-            ReadFile(python_stdout_pipe, str, 100, &have_read, NULL);         
+            ReadFile(python_stdout_pipe, str, 99, &have_read, NULL);         
             PyGILState_STATE state = PyGILState_Ensure();        
             PySys_WriteStdout(str);        
             PyGILState_Release(state);
@@ -64,7 +327,7 @@ def redirect_std_files():
             char *str = new char[100];
             memset(str, 0, 100);
             DWORD have_read = 0;           
-            ReadFile(python_stderr_pipe, str, 100, &have_read, NULL);         
+            ReadFile(python_stderr_pipe, str, 99, &have_read, NULL);         
             PyGILState_STATE state = PyGILState_Ensure();        
             PySys_WriteStderr(str);        
             PyGILState_Release(state);
@@ -79,59 +342,17 @@ def redirect_std_files():
     root_interface.ProcessLine(b"""std::cout.rdbuf(stdout_redirect.rdbuf());""")
     root_interface.ProcessLine(b"""std::cerr.rdbuf(stderr_redirect.rdbuf());""")
     
-
-def init_root():
+    
+def init2():
     global root_interface
+    global clang_core
     os.add_dll_directory(dir_name)
-    os.add_dll_directory(os.path.join(dir_name, "root", "bin"))
-    root_interface = ctypes.CDLL("root_interface.dll")
-    root_interface.ProcessLine.argtypes = [ctypes.c_char_p]
-    root_interface.ProcessLine.restype = None
-    root_interface.ProcessLine(b".include python")
-    root_interface.ProcessLine(b"""#include \"Python.h\"""")
-    code = b"""
-    template<typename T>
-    T py_to_pointer(const char *name, bool local = true)
-    {
-        PyGILState_STATE state = PyGILState_Ensure();
-        PyObject *locals;
-        if (local == true)
-        {
-            locals = PyEval_GetFrameLocals();
-        }
-        else
-        {
-            locals = PyEval_GetFrameGlobals();
-        }
-        PyObject *pyobject_address = PyDict_GetItemString(locals, name);
-        long long address = PyLong_AsLongLong(pyobject_address);
-        T obj = reinterpret_cast<T>(address);
-        PyGILState_Release(state);
-        return obj;
-    }
-"""
-    root_interface.ProcessLine(code)
-    code = b"""
-    class PyOStream
-    {
-    public:
-        template<typename T>
-        PyOStream& operator<<(T var)
-        {
-            std::stringstream ss;
-            ss << var;
-            PyGILState_STATE state = PyGILState_Ensure();
-            PySys_WriteStdout(ss.str().c_str());
-            PyGILState_Release(state);    
-            return *this;
-        }
-    };
-
-
-    PyOStream pyout;
-    """
-    root_interface.ProcessLine(code)
+    os.add_dll_directory(os.path.join(dir_name, "root", "bin"))  
+    root_interface = load_root_interface()
+    clang_core = load_clang_core()
+    define_cpp_api()    
     redirect_std_files()
+    ctypes.CDLL("std.dll")
     os.system("") # enables rendering ansi escapes and prevents weird shit from occuring when interactive shell is used from cmd instead of IDLE
     return root_interface
 
@@ -139,7 +360,7 @@ def init_root():
 def init():
     cd = os.getcwd()
     os.chdir(dir_name)  
-    init_root()
+    init2()
     os.chdir(cd)
 
 
