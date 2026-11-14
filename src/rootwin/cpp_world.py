@@ -910,11 +910,13 @@ class CppWorld:
     def __getattr__(self, name):
         name_bytes = bytes(name, encoding = "utf-8")
         if name_bytes not in interop.names:
-            code = name_bytes + b";"
-            root_interface.ProcessLine(code)
             interop.load_cpp_names()
             if name_bytes not in interop.names:
-                raise NameError(f"""Name "{name}" is not a known C++ name""")
+                code = name_bytes + b";"
+                root_interface.ProcessLine(code)
+                interop.load_cpp_names()
+                if name_bytes not in interop.names:
+                    raise NameError(f"""Name "{name}" is not a known C++ name""")
         if name_bytes in interop.macros:
             return handle_macro(name)
         elif name_bytes in interop.variables:
