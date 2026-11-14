@@ -81,6 +81,23 @@ _cpp_variable_ must be a [CppVariable](#cpp-names) instance whose underlying C++
 _is_array_ indicates whether this operation acts like the delete keyword or delete[] keyword of C++.
 Since its default value is false, it acts like the delete keyword by default.
 
+rootwin.**static_cast**
+
+rootwin.**dynamic_cast**
+
+rootwin.**reinterpret_cast**
+
+rootwin.**const_cast**
+
+These objects act like the casting keywords of C++. 
+Target type is specified by subscripting with strings. Subscription result is the same object. 
+Then you can specify the source value by calling that object such as:
+```python
+rootwin.static_cast["int"](rootwin.cpp_world.var1)
+```
+Source value must be either a [CppVariable](#cpp-names) object or a [CppFunction](#cpp-names) object. Literals are not supported.
+Return value is always a [CppVariable](#cpp-names) object.
+
 # C++ Api
 This is the api available to the C++ code executed by rootwin.ProcessLine().
 
@@ -109,8 +126,8 @@ The reason for that is, such an operation completes when the data is sent to the
 Data will be printed only after the worker thread reads it and sends it to sys.stdout or sys.stderr.
 If you want the stream insertion operation to block until the data is printed to screen, use _pyout_ instead of std::cout.
 
-# Passing C++ objects to python
-Unlike cppyy and root libraries, manual work is needed to access C++ objects from python. High level steps are below:
+# Manually passing C++ objects to python
+High level steps are below:
 1. Prepare the python world for the next steps by instantiating a [ctypes.c_longlong](https://docs.python.org/3/library/ctypes.html#ctypes.c_longlong). This will be our "out" argument.
 2. Take the address of this variable and assign it to another variable
 3. Call rootwin.ProcessLine(code) where code is a 2 liner trick which exports the address of any C++ object to python.
