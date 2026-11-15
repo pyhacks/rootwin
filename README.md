@@ -6,9 +6,7 @@ Moreover, there is a C++ library called [root](https://root.cern/doc/master/clas
 Additionally, root has python [bindings](https://root.cern/manual/python/#just-in-time-compilation-of-small-strings) which support C++17 but they only work on linux.
 Also, there is a seperate library called [cppyy](https://cppyy.readthedocs.io/en/latest/) which works on windows if you manage to win the fight against its broken build system. By the way, it [claims](https://cppyy.readthedocs.io/en/latest/installation.html#c-standard-with-pip) to support C++20 by default, but in practice it only supports C++14 and there is no way of increasing this revision. 
 Lastly there is this library, **rootwin**, which works on windows and also supports C++17 and it's not fake. 
-However, it's interoperability capabilities are more limited compared to root and cppyy. 
-Specifically, C++ symbols you define are not automatically wrapped into python objects and made available to python.
-Nonetheless, you can use some techniques which are explained below to get some amount of interoperability.
+Additionally, you can use some techniques which are explained below to get some amount of interoperability.
 
 # Installation
 ```pip install rootwin```
