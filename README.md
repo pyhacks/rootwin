@@ -124,7 +124,14 @@ _class_ **CppFunction**
 
 Respresents a C++ function, including methods, templated function instantiations and excluding uninstantiated function templates and function like macros.
 Calling an instance of this class will result in a call to the underlying C++ function.
+While calling an instance of this class, if types of given arguments are selected from builtin types they will be converted to the corresponding C++ primitive types. 
+Otherwise, types of given arguments must be [CppVariable](#cpp-variable).
+In that case, each corresponding argument passed to the underlying C++ function will be the C++ variable represented by the [CppVariable](#cpp-variable) instance given during calling this CppFunction instance.
 If the C++ function returns something, it will always be forwarded as a [CppVariable](#cpp-variable) instance.
+
+CppFunction.**name**
+
+A string storing the C++ name of the C++ function this CppFunction instance wraps. 
 
 CppFunction.**prototype**
 
@@ -136,15 +143,41 @@ This class inherits [CppVariable](#cpp-variable).
 The reason for that is during construction, value of this macro is assigned to a C++ variable.
 This C++ variable is managed by ObjectLikeMacro. 
 
+ObjectLikeMacro.**name**
+
+A string storing the C++ name of the C++ variable this ObjectLikeMacro instance manages.   
+
+ObjectLikeMacro.**type_name**
+
+A string storing the C++ type name of the C++ variable this ObjectLikeMacro instance manages.  
+
 _class_ **FunctionLikeMacro**
 
 Wraps a C++ function-like macro. Unlike ObjectLikeMacro, it doesn't inherit anything.
+Calling an instance of this class will result in a call to the underlying C++ macro.
+While calling an instance of this class, if types of given arguments are selected from builtin types they will be converted to the corresponding C++ primitive types. 
+Otherwise, types of given arguments must be [CppVariable](#cpp-variable).
+In that case, each corresponding argument passed to the underlying C++ macro will be the C++ variable represented by the [CppVariable](#cpp-variable) instance given during calling this FunctionLikeMacro instance.
+Return value will always be forwarded as a [CppVariable](#cpp-variable) instance.
+
+FunctionLikeMacro.**name**
+
+A string storing the C++ name of the C++ macro this FunctionLikeMacro instance wraps. 
 
 _class_ **CppType**
 
 Represents a C++ type, including fundamental types, classes, structs, enums, unions, typedef'ed types, type aliases, class template instantiations and excluding uninstantiated class templates.
 You can get the list of names of all the members of the C++ class this CppType instance wraps by passing the CppType instance to [dir()](https://docs.python.org/3/builtins/functions.html#dir).
 You can access static members and inner types via member access operator (.) just like you do for instances.
+If the C++ type represented by an instance of this class callable, calling an instance of this class will result in instantiation of the corresponding C++ type.
+While calling an instance of this class, if types of given arguments are selected from builtin types they will be converted to the corresponding C++ primitive types. 
+Otherwise, types of given arguments must be [CppVariable](#cpp-variable).
+In that case, each corresponding argument passed to the underlying C++ type's constructor will be the C++ variable represented by the [CppVariable](#cpp-variable) instance given during calling this CppType instance.
+Instantiated C++ object will always be forwarded as a [CppVariable](#cpp-variable) instance.
+
+CppType.**name**
+
+A string storing the C++ name of the C++ type this CppType instance wraps. 
 
 CppType.**sizeof**()
 
@@ -155,6 +188,10 @@ _class_ **CppNamespace**
 Represents a C++ namespace.
 You can get the list of names of all the members of the C++ namespace this CppNamespace instance wraps by passing the CppNamespace instance to [dir()](https://docs.python.org/3/builtins/functions.html#dir).
 
+CppNamespace.**name**
+
+A string storing the C++ name of the C++ namespace this CppNamespace instance wraps. 
+
 _class_ **CppTemplate**
 
 Represents a C++ template, including variable templates, function templates and class templates.
@@ -164,6 +201,9 @@ Example:
 ```python
 cpp_function1 = rootwin.cpp_world.func_template1["int", "float"]
 ```
+CppTemplate.**name**
+
+A string storing the C++ name of the C++ template this CppTemplate instance wraps. 
 
 <a name="load-cpp-names"></a>
 rootwin.**load_cpp_names**()
