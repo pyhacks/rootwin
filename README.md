@@ -214,9 +214,10 @@ rootwin.**new**(type_str, initializer = None)
 
 This function acts like the new keyword of C++. 
 _type_str_ is the type name and if given, _initializer_ must be a tuple storing the arguments. 
-Elements of _initalizer_ can either be python literals or [CppVariable](#cpp-variable) instances.
-If an element is a python literal, it will be converted to its corresponding C++ literal.
+Types of elements of _initializer_ can either be built in python types or [CppVariable](#cpp-variable).
+If the type of an element is a built in type, it will be converted to its corresponding C++ primitive type.
 Otherwise [CppVariable](#cpp-variable) object's underlying C++ name will be used as the argument.
+In any case, resulting pointer will be wrapped in a [CppVariable](#cpp-variable) instance which will be the return value of this function.
 
 rootwin.**delete**(cpp_variable, is_array = False)
 
