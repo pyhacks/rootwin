@@ -11,6 +11,28 @@ Additionally, you can use some techniques which are explained below to get some 
 # Installation
 ```pip install rootwin```
 
+# Importing
+You must initialize the module after importing by calling rootwin.**load**():
+```python
+import rootwin
+rootwin.load()
+```
+It is not automatically called during import in order to make it possible to add a logging configuration before it:
+
+rootwin.**enable_logging**()
+
+Log the completion of initialization stages during rootwin.load().
+Even if you don't call this function, logging is enabled by default since rootwin.load() takes a bit long.
+
+rootwin.**disable_logging**()
+
+Do not log the completion of initialization stages during import. Example:
+```python
+import rootwin
+rootwin.disable_logging()
+rootwin.load()
+```
+
 # Python Api
 rootwin.**ProcessLine**(code)
 
