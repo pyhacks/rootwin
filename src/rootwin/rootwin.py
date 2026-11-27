@@ -4,6 +4,8 @@ import sys
 
 import pyptrs
 
+from .log import log
+
 
 def load_root_interface():
     root_interface = ctypes.CDLL("root_interface.dll")
@@ -12,8 +14,7 @@ def load_root_interface():
     return root_interface
 
 
-def load_headers(root_interface):
-    from . import log
+def load_headers(root_interface):    
     root_interface.ProcessLine(b"""#include "core/metacling/src/TCling.h" """)
     root_interface.ProcessLine(b"""#include "core/metacling/src/TClingClassInfo.h" """)
     log("[+] root headers has been loaded")

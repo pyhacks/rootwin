@@ -1,3 +1,4 @@
+from .log import log
 from . import install
 from .rootwin import *
 
@@ -6,28 +7,6 @@ dir_name = os.path.split(__file__)[0]
 root_interface = None
 clang_core = None
 std = None
-log_flag = True
-
-
-def log(string):
-    if log_flag:
-        print(string)
-
-
-def enable_logging():
-    cd = os.getcwd()
-    os.chdir(dir_name)    
-    with open("log_flag.txt", "w") as f:
-        f.write("1")
-    os.chdir(cd)
-
-
-def disable_logging():
-    cd = os.getcwd()
-    os.chdir(dir_name)        
-    with open("log_flag.txt", "w") as f:
-        f.write("0")
-    os.chdir(cd)
 
         
 def init1():
