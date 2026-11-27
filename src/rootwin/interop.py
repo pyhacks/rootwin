@@ -1,7 +1,7 @@
 import ctypes
 import pyptrs
 
-from .rootwin import root_interface
+from . import root_interface
 
 
 macros = []

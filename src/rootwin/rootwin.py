@@ -1,12 +1,8 @@
 import ctypes
 import os
+import sys
 
 import pyptrs
-
-
-dir_name = os.path.split(__file__)[0]
-root_interface = None
-clang_core = None
 
 
 def load_root_interface():
@@ -16,12 +12,14 @@ def load_root_interface():
     return root_interface
 
 
-def load_clang_core():
-    clang_core = ctypes.CDLL("clang_core.dll")    
+def load_headers(root_interface):
+    from . import log
     root_interface.ProcessLine(b"""#include "core/metacling/src/TCling.h" """)
     root_interface.ProcessLine(b"""#include "core/metacling/src/TClingClassInfo.h" """)
+    log("[+] root headers has been loaded")
     root_interface.ProcessLine(b"""#include "cling/Interpreter/Interpreter.h" """)
     root_interface.ProcessLine(b"""#include "cling/Interpreter/IncrementalParser.h" """)
+    log("[+] cling headers has been loaded")
     root_interface.ProcessLine(b"""#include "clang/Frontend/CompilerInstance.h" """)
     root_interface.ProcessLine(b"""#include "clang/AST/Type.h" """)
     root_interface.ProcessLine(b"""#include "clang/Basic/IdentifierTable.h" """)
@@ -32,10 +30,10 @@ def load_clang_core():
     root_interface.ProcessLine(b"""#include "clang/AST/DeclLookups.h" """)
     root_interface.ProcessLine(b"""#include "clang/Lex/Preprocessor.h" """)
     root_interface.ProcessLine(b"""#include "clang/Sema/Sema.h" """)
-    return clang_core
+    log("[+] clang headers has been loaded")
     
     
-def define_cpp_api():
+def define_cpp_api(root_interface):
     root_interface.ProcessLine(b".include python")
     root_interface.ProcessLine(b"""#include \"Python.h\"""")
     code = b"""
@@ -276,7 +274,7 @@ def define_cpp_api():
     root_interface.ProcessLine(code)      
 
    
-def redirect_std_files():
+def redirect_std_files(root_interface):
     code = b"""
     HANDLE python_stdout_pipe = CreateNamedPipeA("\\\\\\\\.\\\\pipe\\\\rootwin_stdout_loopback",
                      PIPE_ACCESS_DUPLEX,
@@ -342,26 +340,3 @@ def redirect_std_files():
     root_interface.ProcessLine(b"""std::cout.rdbuf(stdout_redirect.rdbuf());""")
     root_interface.ProcessLine(b"""std::cerr.rdbuf(stderr_redirect.rdbuf());""")
     
-    
-def init2():
-    global root_interface
-    global clang_core
-    os.add_dll_directory(dir_name)
-    os.add_dll_directory(os.path.join(dir_name, "root", "bin"))  
-    root_interface = load_root_interface()
-    clang_core = load_clang_core()
-    define_cpp_api()    
-    redirect_std_files()
-    ctypes.CDLL("std.dll")
-    os.system("") # enables rendering ansi escapes and prevents weird shit from occuring when interactive shell is used from cmd instead of IDLE
-    return root_interface
-
-
-def init():
-    cd = os.getcwd()
-    os.chdir(dir_name)  
-    init2()
-    os.chdir(cd)
-
-
-init()
