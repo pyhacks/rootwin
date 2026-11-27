@@ -1,21 +1,24 @@
-from .log import log
+from .log import log, enable_logging, disable_logging
 from . import install
 from .rootwin import *
 
 
-dir_name = os.path.split(__file__)[0]
 root_interface = None
 clang_core = None
 std = None
+ProcessLine = None
 
         
 def init1():
     global root_interface
     global clang_core
     global std
+    global ProcessLine
+    dir_name = os.path.split(__file__)[0]
     os.add_dll_directory(dir_name)
     os.add_dll_directory(os.path.join(dir_name, "root", "bin"))  
     root_interface = load_root_interface()
+    ProcessLine = root_interface.ProcessLine
     log("[+] root_interface.dll has been loaded")    
     clang_core = ctypes.CDLL("clang_core.dll") 
     log("[+] clang_core.dll has been loaded")
@@ -31,25 +34,29 @@ def init1():
 def init2():
     load_cpp_names()
     log("[+] Updated the C++ names cache")
-    
 
-def init():
-    global log_flag
-    cd = os.getcwd()
-    os.chdir(dir_name)
-    with open("log_flag.txt", "r") as f:
-        log_flag = f.read()
-        log_flag = int(log_flag)
+
+def fix_dir(func):
+    dir_name = os.path.split(__file__)[0]
+    def wrapper(*args, **kwargs):
+        cd = os.getcwd()
+        os.chdir(dir_name)    
+        result = func(*args, **kwargs)
+        os.chdir(cd)
+        return result
+
+    return wrapper
+
+
+@fix_dir     
+def load(): 
     init1()
-    os.chdir(cd)
+    global load_cpp_names, cpp_to_int
+    global cpp_world, new, delete
+    global static_cast, dynamic_cast, reinterpret_cast, const_cast
+    from .interop import load_cpp_names, cpp_to_int
+    from .cpp_world import cpp_world, new, delete
+    from .cast import static_cast, dynamic_cast, reinterpret_cast, const_cast
+    init2()
 
-
-init()
-
-from .interop import load_cpp_names, cpp_to_int
-from .cpp_world import cpp_world, new, delete
-from .cast import static_cast, dynamic_cast, reinterpret_cast, const_cast
-
-init2()
-
-ProcessLine = root_interface.ProcessLine
+#load() # uncomment if you won't need disable_logging()
